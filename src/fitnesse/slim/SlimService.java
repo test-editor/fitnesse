@@ -2,7 +2,11 @@
 // Released under the terms of the CPL Common Public License version 1.0.
 package fitnesse.slim;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -10,16 +14,19 @@ import java.util.Arrays;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import fitnesse.responders.run.StopTestServerUtil;
 import fitnesse.slim.fixtureInteraction.DefaultInteraction;
 import fitnesse.slim.fixtureInteraction.FixtureInteraction;
 import fitnesse.socketservice.SocketFactory;
 import util.CommandLine;
-
 import static fitnesse.slim.JavaSlimFactory.createJavaSlimFactory;
 
 public class SlimService {
   public static final String OPTION_DESCRIPTOR = "[-v] [-i interactionClass] [-s statementTimeout] [-d] [-ssl parameterClass] port";
   static FixtureInteraction interaction = getInteraction(null);
+
+	public static Thread specialCommandThread;
+	private static ServerSocket specialCommandSocket;
 
   public static class Options {
     final boolean verbose;
@@ -64,6 +71,21 @@ public class SlimService {
     } else {
       parseCommandLineFailed(args);
     }
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+
+				if (specialCommandSocket != null) {
+					try {
+						specialCommandSocket.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+
+			}
+		});    
+    
   }
 
   protected static void parseCommandLineFailed(String[] args) {
@@ -73,8 +95,67 @@ public class SlimService {
   }
 
   public static void startWithFactory(SlimFactory slimFactory, Options options) throws IOException {
-    SlimService slimservice = new SlimService(slimFactory.getSlimServer(options.verbose), options.port, options.interaction, options.daemon, options.useSSL, options.sslParameterClassName);
-    slimservice.accept();
+		final SlimService slimservice = new SlimService(slimFactory.getSlimServer(options.verbose), options.port,
+				options.interaction, options.daemon, options.useSSL, options.sslParameterClassName);
+
+		specialCommandThread = (new Thread() {
+
+			@Override
+			public void run() {
+
+				try {
+
+					specialCommandSocket = new ServerSocket(StopTestServerUtil.getStopTestServerPort());
+					
+					while (true) {
+
+						System.out.println(">>>>> Waiting for rest command on port " + StopTestServerUtil.getStopTestServerPort());
+						Socket accept = specialCommandSocket.accept();
+						BufferedReader br = new BufferedReader(new InputStreamReader(accept.getInputStream()));
+						BufferedWriter out = new BufferedWriter(new OutputStreamWriter(accept.getOutputStream()));
+						String cmd = br.readLine();
+						System.out.println(">>>>> Message found: " + cmd + "\n");
+						if (cmd.contains(StopTestServerUtil.CANCEL_METHOD)) {
+							slimservice.slimServer.interruptTestExecution();
+						} else if (cmd.contains(StopTestServerUtil.SUSPEND_METHOD)) {
+							slimservice.slimServer.suspendTestExecution();
+						} else if (cmd.contains(StopTestServerUtil.RESUME_METHOD)) {
+							slimservice.slimServer.resumeTestExecution();
+						} else if (cmd.contains(StopTestServerUtil.STEPWISE_METHOD)) {
+							slimservice.slimServer.stepwiseTestExecution();
+						}
+					}
+
+				} catch (java.net.BindException be) {
+					System.out.println("Port: " + StopTestServerUtil.getStopTestServerPort()
+							+ "for handling stopTest is in use please set another port by -DSTOPTEST_SERVER_PORT=xxxx");
+					System.out.println("Das Leben ist nicht totzukriegen.");
+					closeSocket();
+				} catch (IOException e) {
+					closeSocket();
+				} catch (ThreadDeath td) {
+					closeSocket();
+				}
+
+			}
+
+			private void closeSocket() {
+				System.out.println("close Socket on Port : " + StopTestServerUtil.getStopTestServerPort());
+				try {
+					if (specialCommandSocket != null) {
+						specialCommandSocket.close();
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+			};
+		});
+		specialCommandThread.setDaemon(true);
+
+		specialCommandThread.start();
+
+		slimservice.accept();
   }
 
   // For testing only -- for now

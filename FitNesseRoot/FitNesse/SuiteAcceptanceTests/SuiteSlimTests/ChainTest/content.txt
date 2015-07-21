@@ -8,16 +8,20 @@
 !|script|$TEST_SLIM|
 |ensure|echo boolean|true|
 
-|$TEST_SLIM|
-|string|get string arg?|
-|Bob|Bob|
+!|script|fitnesse.testutil.WaitFixture|
 
-!|script|echo fixture|
-|$QUERY=|echo|Query|
+!|script|fitnesse.testutil.WaitFixture|
 
-!|Query:Test$QUERY|1|
-|n|2n|
-|1|2|
+!|script|fitnesse.testutil.WaitFixture|
+
+!|script|fitnesse.testutil.WaitFixture|
+
+!|script|fitnesse.testutil.WaitFixture|
+
+!|script|fitnesse.testutil.WaitFixture|
+
+!|script|fitnesse.testutil.WaitFixture|
+
 
 
 

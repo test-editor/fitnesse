@@ -16,7 +16,9 @@ import fitnesse.responders.run.SuiteResponder;
 import fitnesse.responders.run.TestResponder;
 import fitnesse.responders.testHistory.ExecutionLogResponder;
 import fitnesse.wiki.PathParser;
+
 import org.apache.commons.lang.StringUtils;
+
 import fitnesse.Responder;
 import fitnesse.http.Request;
 import fitnesse.responders.editing.AddChildPageResponder;
@@ -102,6 +104,12 @@ public class ResponderFactory {
     addResponder("replace", SearchReplaceResponder.class);
     addResponder("overview", SuiteOverviewResponder.class);
     addResponder("compareVersions", VersionComparerResponder.class);
+    
+    addResponder("pauseTest", TestPauseResponder.class);
+    addResponder("resumeTest", TestResumeResponder.class);
+    addResponder("stepwiseTest", TestRunStepwiseResponder.class);
+    
+    
     filterMap = new HashMap<String, List<Responder>>();
   }
 

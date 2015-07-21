@@ -2,7 +2,11 @@
 // Released under the terms of the CPL Common Public License version 1.0.
 package fitnesse.testsystems.slim;
 
+import static fitnesse.slim.SlimServer.EXCEPTION_TAG;
+
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,6 +15,7 @@ import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import fitnesse.responders.run.StopTestServerUtil;
 import fitnesse.slim.SlimError;
 import fitnesse.slim.instructions.AssignInstruction;
 import fitnesse.slim.instructions.Instruction;
@@ -34,7 +39,7 @@ public abstract class SlimTestSystem implements TestSystem {
   public static final SlimTable START_OF_TEST = null;
   public static final SlimTable END_OF_TEST = null;
 
-  private final SlimClient slimClient;
+  private SlimClient slimClient;
   private final CompositeTestSystemListener testSystemListener;
   private final String testSystemName;
 
@@ -43,6 +48,13 @@ public abstract class SlimTestSystem implements TestSystem {
   private boolean stopSuiteCalled;
   private boolean testSystemIsStopped;
 
+	public SlimClient getSlimClient() {
+		return slimClient;
+	}
+
+	public void setSlimClient(SlimClient slimClient) {
+		this.slimClient = slimClient;
+	}
 
   public SlimTestSystem(String testSystemName, SlimClient slimClient) {
     this.testSystemName = testSystemName;
@@ -74,11 +86,78 @@ public abstract class SlimTestSystem implements TestSystem {
     }
   }
 
-  @Override
-  public void kill() throws IOException {
-    // No need to send events here, since killing the process is typically done asynchronously.
-    slimClient.kill();
-  }
+	@Override
+	public void kill() throws IOException {
+		// No need to send events here, since killing the process is typically
+		// done asynchronously.
+
+		if (!isCalledFromTestResponder()) {
+			cleanUpBeforeKill();
+		}
+
+		// waiting bacause we need time to invoke the statement
+		// before killing the testsystem
+		waitMilliSeconds(5000);
+
+		slimClient.kill();
+	}
+	
+	/**
+	 * Returns true if calling from TestResponder.
+	 * 
+	 * @param stackTrace
+	 * @return
+	 */
+	private boolean isCalledFromTestResponder() {
+
+		boolean callCleanUp = false;
+
+		StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+
+		for (StackTraceElement stackTraceElement : stackTrace) {
+			if (stackTraceElement.getClassName().startsWith("fitnesse.responders.run.TestResponder")) {
+				callCleanUp = true;
+				break;
+			}
+		}
+		return callCleanUp;
+	}
+	
+	/**
+	 * Wait for given milli seconds
+	 */
+	private void waitMilliSeconds(int milliseconds) {
+
+		try {
+			Thread.sleep(milliseconds);
+		} catch (InterruptedException e) {
+
+		}
+	}
+	
+	/**
+	 * Before killing the testsystem the teardown Method of Fixture will be
+	 * invoked.
+	 * 
+	 */
+	private void cleanUpBeforeKill() {
+
+		System.out.println("TestSystemGroup.cleanUpBeforeKill()");
+
+		try {
+
+			int stopTestServerPort = StopTestServerUtil.getStopTestServerPort();
+
+			Socket socket = new Socket("localhost", stopTestServerPort);
+			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+			out.println(StopTestServerUtil.CANCEL_METHOD);
+			socket.close();
+		} catch (Exception e) {
+			// do nothing: Steam Read Failure will be thrown
+			System.out.println(e.getMessage());
+		}
+
+	}			
 
   @Override
   public void bye() throws IOException {

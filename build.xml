@@ -81,6 +81,9 @@
 			</manifest>
 		</jar>
 		<delete file="${dist.dir}/.fitnesse-standalone-jar-dependencies.tmp" />
+		<delete file="dist/fitnesse.jar"/>
+		<move file="dist/fitnesse-standalone.jar" toFile="/Users/opolat/TestEditor/workspaces/testeditorws/te/fitnesse/org.testeditor.fixture.lib/lib/fitnesse.jar" />
+
 	</target>
 
 	<target name="sources-jar" depends="stamp-version">
@@ -139,7 +142,7 @@
     <target name="compile-server" depends="stamp-version, resolve" description="compile FitNesse sources">
         <mkdir dir="${classes.dir}" />
 	    <ivy:cachepath pathid="compile.classpath" conf="default"/>
-        <javac srcdir="${src.dir}" destdir="${classes.dir}" debug="true" source="1.6" target="1.6" includeantruntime="false">
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" debug="true" source="1.7" target="1.7" includeantruntime="false">
             <classpath>
                 <path refid="compile.classpath"/>
             </classpath>

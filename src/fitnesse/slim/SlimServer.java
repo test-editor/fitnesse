@@ -2,6 +2,7 @@
 // Released under the terms of the CPL Common Public License version 1.0.
 package fitnesse.slim;
 
+import fitnesse.responders.run.StopTestServerUtil;
 import fitnesse.slim.protocol.SlimDeserializer;
 import fitnesse.slim.protocol.SlimSerializer;
 import fitnesse.socketservice.SocketFactory;
@@ -10,89 +11,137 @@ import fitnesse.socketservice.SocketServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 
-
 public class SlimServer implements SocketServer {
-  public static final String MALFORMED_INSTRUCTION = "MALFORMED_INSTRUCTION";
-  public static final String NO_CLASS = "NO_CLASS";
-  public static final String NO_INSTANCE = "NO_INSTANCE";
-  public static final String NO_CONVERTER_FOR_ARGUMENT_NUMBER = "NO_CONVERTER_FOR_ARGUMENT_NUMBER";
-  public static final String NO_CONSTRUCTOR = "NO_CONSTRUCTOR";
-  public static final String NO_METHOD_IN_CLASS = "NO_METHOD_IN_CLASS";
-  public static final String COULD_NOT_INVOKE_CONSTRUCTOR = "COULD_NOT_INVOKE_CONSTRUCTOR";
-  public static final String TIMED_OUT = "TIMED_OUT";
-  public static final String EXCEPTION_TAG = "__EXCEPTION__:";
-  public static final String EXCEPTION_STOP_TEST_TAG = "__EXCEPTION__:ABORT_SLIM_TEST:";
-  public static final String EXCEPTION_STOP_SUITE_TAG = "__EXCEPTION__:ABORT_SLIM_SUITE:";
+	public static final String MALFORMED_INSTRUCTION = "MALFORMED_INSTRUCTION";
+	public static final String NO_CLASS = "NO_CLASS";
+	public static final String NO_INSTANCE = "NO_INSTANCE";
+	public static final String NO_CONVERTER_FOR_ARGUMENT_NUMBER = "NO_CONVERTER_FOR_ARGUMENT_NUMBER";
+	public static final String NO_CONSTRUCTOR = "NO_CONSTRUCTOR";
+	public static final String NO_METHOD_IN_CLASS = "NO_METHOD_IN_CLASS";
+	public static final String COULD_NOT_INVOKE_CONSTRUCTOR = "COULD_NOT_INVOKE_CONSTRUCTOR";
+	public static final String TIMED_OUT = "TIMED_OUT";
+	public static final String EXCEPTION_TAG = "__EXCEPTION__:";
+	public static final String EXCEPTION_STOP_TEST_TAG = "__EXCEPTION__:ABORT_SLIM_TEST:";
+	public static final String EXCEPTION_STOP_SUITE_TAG = "__EXCEPTION__:ABORT_SLIM_SUITE:";
 
-  private SlimStreamReader reader;
-  private OutputStream writer;
-  private ListExecutor executor;
-  private boolean verbose;
-  private SlimFactory slimFactory;
+	private SlimStreamReader reader;
+	private OutputStream writer;
+	private ListExecutor executor;
+	private boolean verbose;
+	private SlimFactory slimFactory;
 
-  public SlimServer(boolean verbose, SlimFactory slimFactory) {
-    this.verbose = verbose;
-    this.slimFactory = slimFactory;
-  }
+	public static Object tearDownStatement;
+	public static boolean tearDownCalled = false;
 
-  public void serve(Socket s) {
-    try {
-      tryProcessInstructions(s);
-    } catch (Throwable e) {
-      System.err.println("Error while executing SLIM instructions: " + e.getMessage());
-      e.printStackTrace(System.err);
-    } finally {
-      slimFactory.stop();
-      close();
-    }
-  }
+	public SlimServer(boolean verbose, SlimFactory slimFactory) {
+		this.verbose = verbose;
+		this.slimFactory = slimFactory;
+	}
 
-  private void tryProcessInstructions(Socket s) throws IOException {
-    initialize(s);
-    boolean more = true;
-    while (more)
-      more = processOneSetOfInstructions();
-  }
+	public void serve(Socket s) {
+		try {
+			tryProcessInstructions(s);
+		} catch (Throwable e) {
+			System.err.println("Error while executing SLIM instructions: " + e.getMessage());
+			e.printStackTrace(System.err);
+		} finally {
+			slimFactory.stop();
+			close();
+		}
+	}
 
-  private void initialize(Socket s) throws IOException {
-    SocketFactory.printSocketInfo(s);
-    reader = SlimStreamReader.getReader(s);
-    writer = SlimStreamReader.getByteWriter(s);
-    executor = slimFactory.getListExecutor(verbose);
-    SlimStreamReader.sendSlimHeader(writer, String.format(SlimVersion.SLIM_HEADER + SlimVersion.VERSION + "\n"));
-  }
+	private void tryProcessInstructions(Socket s) throws IOException {
+		initialize(s);
+		boolean more = true;
+		while (more && !SlimServer.tearDownCalled) {
+			more = processOneSetOfInstructions();
+		}
+	}
 
-  private boolean processOneSetOfInstructions() throws IOException {
-    String instructions = reader.getSlimMessage();
-    // Not sure why this is need but we keep it.
-    if (instructions == null) return true;
-    // We are done Bye Bye message received
-    if (instructions.equalsIgnoreCase(SlimVersion.BYEMESSAGE)) {
-      return false;
-    }
+	private void initialize(Socket s) throws IOException {
+		SocketFactory.printSocketInfo(s);
+		reader = SlimStreamReader.getReader(s);
+		writer = SlimStreamReader.getByteWriter(s);
+		executor = slimFactory.getListExecutor(verbose);
+		SlimStreamReader.sendSlimHeader(writer, String.format(SlimVersion.SLIM_HEADER + SlimVersion.VERSION + "\n"));
+	}
 
-    // Do some real work
-    String resultString = executeInstructions(instructions);
-    SlimStreamReader.sendSlimMessage(writer, resultString);
-    return true;
-  }
+	private boolean processOneSetOfInstructions() throws IOException {
+		String instructions = reader.getSlimMessage();
+		// Not sure why this is need but we keep it.
+		if (instructions == null)
+			return true;
+		// We are done Bye Bye message received
+		if (instructions.equalsIgnoreCase(SlimVersion.BYEMESSAGE)) {
+			SlimService.specialCommandThread.stop();
+			return false;
+		}
 
-  private String executeInstructions(String instructions) {
-    List<Object> statements = SlimDeserializer.deserialize(instructions);
-    List<Object> results = executor.execute(statements);
-    String resultString = SlimSerializer.serialize(results);
-    return resultString;
-  }
+		// Do some real work
+		String resultString = executeInstructions(instructions);
+		SlimStreamReader.sendSlimMessage(writer, resultString);
+		return true;
+	}
 
-  private void close() {
-    try {
-      reader.close();
-      writer.close();
-    } catch (Exception e) {
+	public String executeInstructions(String instructions) {
+		List<Object> statements = SlimDeserializer.deserialize(instructions);
+		List<Object> results = executor.execute(statements);
+		String resultString = SlimSerializer.serialize(results);
+		return resultString;
+	}
 
-    }
-  }
+	private void close() {
+		try {
+			reader.close();
+			writer.close();
+		} catch (Exception e) {
+
+		}
+	}
+
+	public void interruptTestExecution() {
+		System.out.println(">>>>> SlimServer.interruptTestExecution()");
+		executor.getStatementExecutor().stopTest();
+		tearDownStatement = list("id", "call", StopTestServerUtil.CANCEL_FIXTURE, StopTestServerUtil.CANCEL_METHOD);
+	}
+
+	public void suspendTestExecution() {
+		System.out.println(">>>>> SlimServer.suspendTestExecution()");
+		executor.getStatementExecutor().pauseTest();
+	}
+
+	public void resumeTestExecution() {
+		System.out.println(">>>>> SlimServer.resumeTestExecution()");
+		executor.getStatementExecutor().resumeTest();
+	}
+
+	public void stepwiseTestExecution() {
+		System.out.println(">>>>> SlimServer.stepwiseTestExecution()");
+		executor.getStatementExecutor().stepwiseTest();
+	}
+	
+	private static List<String> list(String... strings) {
+		List<String> list = new ArrayList<String>();
+		for (String string : strings)
+			list.add(string);
+		return list;
+	}
+
+	/**
+	 * 
+	 */
+	static public boolean existsTearDownStatement() {
+		return tearDownStatement != null;
+	}
+
+	/**
+	 * @return the tearDownStatement
+	 */
+	public static Object getTearDownStatement() {
+		return tearDownStatement;
+	}
 
 }
