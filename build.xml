@@ -80,10 +80,10 @@
 				<attribute name="Main-Class" value="fitnesseMain.FitNesseMain" />
 			</manifest>
 		</jar>
-		<delete file="${dist.dir}/.fitnesse-standalone-jar-dependencies.tmp" />
+		<!--<delete file="${dist.dir}/.fitnesse-standalone-jar-dependencies.tmp" />
 		<delete file="dist/fitnesse.jar"/>
 		<move file="dist/fitnesse-standalone.jar" toFile="/Users/opolat/TestEditor/workspaces/testeditorws/te/fitnesse/org.testeditor.fixture.lib/lib/fitnesse.jar" />
-
+-->
 	</target>
 
 	<target name="sources-jar" depends="stamp-version">
