@@ -1,5 +1,7 @@
 !2 ${FITNESSE_VERSION}
+* add new responder for pause, resume and stepwise run of test
 
+!2 v20150424
  * !-!contents-! has a new [[-H option][UserGuide.FitNesseWiki.MarkupLanguageReference.MarkupContents]] ([[718][https://github.com/unclebob/fitnesse/pull/718]])
  * The JUnit runner is notified of system exceptions ([[716][https://github.com/unclebob/fitnesse/pull/716]])
  * New Slim table type: [[Alias table][UserGuide.WritingAcceptanceTests.SliM.DefineAlias]] ([[711][https://github.com/unclebob/fitnesse/pull/711]])
