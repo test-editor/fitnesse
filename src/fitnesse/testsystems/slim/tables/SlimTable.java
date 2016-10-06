@@ -256,6 +256,9 @@ public abstract class SlimTable {
     public SlimExceptionResult evaluateException(SlimExceptionResult exceptionResult) {
       table.updateContent(col, row, exceptionResult);
       getTestContext().incrementErroredTestsCount();
+      if (exceptionResult.isStopTestException() || exceptionResult.isStopSuiteException()) {
+          getTestContext().incrementFailedTestsCount();
+      }
       return exceptionResult;
     }
 
