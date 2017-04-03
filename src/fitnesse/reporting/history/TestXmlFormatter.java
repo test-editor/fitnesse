@@ -4,7 +4,10 @@ package fitnesse.reporting.history;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
@@ -12,18 +15,22 @@ import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.util.Date;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import javax.swing.text.DateFormatter;
+import javax.xml.bind.DatatypeConverter;
 
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
-import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
+import fitnesse.ContextConfigurator;
 import fitnesse.FitNesseContext;
 import fitnesse.reporting.BaseFormatter;
 import fitnesse.testrunner.WikiTestPage;
@@ -41,6 +48,7 @@ import fitnesse.util.TimeMeasurement;
 import fitnesse.wiki.PageData;
 import fitnesse.wiki.WikiPage;
 import fitnesse.wiki.WikiPageUtil;
+import sun.misc.BASE64Encoder;
 
 public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListener, Closeable {
 	private final FitNesseContext context;
@@ -192,7 +200,7 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 			}
 			testName = page.getName() + testName;
 			page = page.getParent();
-		} 
+		}
 		writeResults(writerFactory.getWriter(context, getPage(), getPageCounts(), totalTimeMeasurement.startedAt()),
 				testName);
 	}
@@ -211,6 +219,8 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 
 		StringWriter stringWriter = new StringWriter();
 		template.merge(velocityContext, stringWriter);
+
+		String contentAsString = stringWriter.toString();
 		if (System.getProperty("testMgmtServer") != null) {
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
@@ -221,34 +231,36 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 				conn.setDoOutput(true);
 				conn.connect();
 
-				JSONObject jsonObject1 = new JSONObject();
-				jsonObject1.put("attachment-files", new JSONArray());
-				jsonObject1.put("content", stringWriter.toString());
+				JSONObject jsonObject = new JSONObject();
+
+				getAttachmentFiles(contentAsString);
+
+				jsonObject.put("attachment-files", getAttachmentFiles(contentAsString));
+				jsonObject.put("content", contentAsString);
 				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-				jsonObject1.put("date", dateFormat.format(new Date()));
-				jsonObject1.put("testname", testName);
+				jsonObject.put("date", dateFormat.format(totalTimeMeasurement.startedAt()));
+				jsonObject.put("testname", testName);
 
 				OutputStreamWriter out = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
-				out.write(jsonObject1.toString());
+				out.write(jsonObject.toString());
 				out.close();
 
-				if (conn.getResponseCode() != 200) {
-					throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+				if (conn.getResponseCode() != 201) {
+					BufferedReader br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
+
+					StringBuffer result = new StringBuffer();
+					String output;
+					while ((output = br.readLine()) != null) {
+						result.append(output);
+					}
+					throw new RuntimeException("the server testMgmtServer " + System.getProperty("testMgmtServer")
+							+ " could not read the testresult. ResponseCode: '" + conn.getResponseCode()
+							+ "' Message: '" + result.toString() + "'");
 				}
 
-				BufferedReader br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
-
-				StringBuffer result = new StringBuffer();
-				String output;
-				while ((output = br.readLine()) != null) {
-					result.append(output);
-				}
-				if (!"true".equals(result.toString())) {
-					LOG.severe("the serve testMgmtServer " + System.getProperty("testMgmtServer") + " could not read the testresutl");
-					LOG.severe("Message '" + result.toString() + "'");
-				}
 			} catch (Exception e) {
-				LOG.severe("the serve testMgmtServer " + System.getProperty("testMgmtServer") + " has thrown an exception");
+				LOG.severe("the server testMgmtServer " + System.getProperty("testMgmtServer")
+						+ " has thrown an exception");
 				LOG.severe("Message " + e.getMessage());
 				e.printStackTrace();
 			}
@@ -256,6 +268,61 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 			LOG.fine("testMgmtServer is not set. Result ist not published on the TestMgmtServer");
 		}
 
+	}
+
+	private Collection<JSONObject> getAttachmentFiles(String text) {
+		Map<String, JSONObject> attachmentFiles = new HashMap<String, JSONObject>();
+
+		String regex = "href='?\"?\\/files.+?(?=('|\"))";
+		Matcher matcher = Pattern.compile(regex).matcher(text);
+		while (matcher.find()) {
+			String relativeFilePath = matcher.group().substring("href=".length() + 2, matcher.group().length());
+			File attachmentFile = new File(ContextConfigurator.DEFAULT_ROOT + "/" + relativeFilePath);
+			String filename = attachmentFile.getName();
+			JSONObject jsonObject = new JSONObject();
+			jsonObject.put("name", filename);
+
+			String mimeType = "text/plain";
+			if (filename.endsWith(".png")) {
+				mimeType = "image/png";
+			} else if (filename.endsWith(".xml")) {
+				mimeType = "application/xml";
+			}
+			jsonObject.put("mimeType", mimeType);
+			try {
+				jsonObject.put("content", DatatypeConverter.printBase64Binary(getBytesFromFile(attachmentFile)));
+				attachmentFiles.put(filename, jsonObject);
+			} catch (IOException e) {
+				LOG.severe("Error while reading File '" + filename + "'");
+			}
+		}
+
+		return attachmentFiles.values();
+
+	}
+
+	public static byte[] getBytesFromFile(File file) throws IOException {
+		long length = file.length();
+		if (length > Integer.MAX_VALUE) {
+			throw new IOException("File is too large!");
+		}
+		byte[] bytes = new byte[(int) length];
+
+		int offset = 0;
+		int numRead = 0;
+
+		InputStream is = new FileInputStream(file);
+		try {
+			while (offset < bytes.length && (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
+				offset += numRead;
+			}
+		} finally {
+			is.close();
+		}
+		if (offset < bytes.length) {
+			throw new IOException("Could not completely read file " + file.getName());
+		}
+		return bytes;
 	}
 
 	protected TestSummary getPageCounts() {
