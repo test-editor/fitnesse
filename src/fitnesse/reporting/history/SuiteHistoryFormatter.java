@@ -1,9 +1,18 @@
 package fitnesse.reporting.history;
 
+import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.io.Writer;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,6 +29,7 @@ import fitnesse.wiki.PageType;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
+import org.json.JSONObject;
 
 import fitnesse.util.TimeMeasurement;
 import fitnesse.FitNesseContext;
@@ -125,6 +135,56 @@ public class SuiteHistoryFormatter extends BaseFormatter implements ExecutionLog
         VelocityEngine velocityEngine = context.pageFactory.getVelocityEngine();
         Template template = velocityEngine.getTemplate("suiteHistoryXML.vm");
         template.merge(velocityContext, writer);
+
+		if (System.getProperty("testMgmtServer") != null) {
+			StringWriter stringWriter = new StringWriter();
+			template.merge(velocityContext, stringWriter);
+	
+			String contentAsString = stringWriter.toString();
+			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
+			try {
+				URL url = new URL(System.getProperty("testMgmtServer"));
+				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+				conn.setRequestMethod("POST");
+				conn.setRequestProperty("Content-Type", "application/json");
+				conn.setDoOutput(true);
+				conn.connect();
+
+				JSONObject jsonObject = new JSONObject();
+
+				jsonObject.put("content", contentAsString);
+				int hoursOffset = TimeZone.getTimeZone("Europe/Berlin").getOffset(new Date().getTime())/(3600*1000);
+				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'.000+0"+ hoursOffset +":00'");
+				jsonObject.put("date", dateFormat.format(totalTimeMeasurement.startedAt()));
+				jsonObject.put("testname", getPage().getName());
+
+				OutputStreamWriter out = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
+				out.write(jsonObject.toString());
+				out.close();
+
+				if (conn.getResponseCode() != 201) {
+					BufferedReader br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
+
+					StringBuffer result = new StringBuffer();
+					String output;
+					while ((output = br.readLine()) != null) {
+						result.append(output);
+					}
+					throw new RuntimeException("the server testMgmtServer " + System.getProperty("testMgmtServer")
+							+ " could not read the testresult. ResponseCode: '" + conn.getResponseCode()
+							+ "' Message: '" + result.toString() + "'");
+				}
+
+			} catch (Exception e) {
+				LOG.severe("the server testMgmtServer " + System.getProperty("testMgmtServer")
+						+ " has thrown an exception");
+				LOG.severe("Message " + e.getMessage());
+				e.printStackTrace();
+			}
+		} else {
+			LOG.fine("testMgmtServer is not set. Result ist not published on the TestMgmtServer");
+		}
+
       } finally {
         writer.close();
       }

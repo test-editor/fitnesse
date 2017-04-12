@@ -16,9 +16,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,7 +28,6 @@ import javax.xml.bind.DatatypeConverter;
 
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import fitnesse.ContextConfigurator;
@@ -48,7 +48,6 @@ import fitnesse.util.TimeMeasurement;
 import fitnesse.wiki.PageData;
 import fitnesse.wiki.WikiPage;
 import fitnesse.wiki.WikiPageUtil;
-import sun.misc.BASE64Encoder;
 
 public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListener, Closeable {
 	private final FitNesseContext context;
@@ -217,11 +216,12 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 		template.merge(velocityContext, writer);
 		writer.close();
 
-		StringWriter stringWriter = new StringWriter();
-		template.merge(velocityContext, stringWriter);
-
-		String contentAsString = stringWriter.toString();
 		if (System.getProperty("testMgmtServer") != null) {
+			StringWriter stringWriter = new StringWriter();
+			template.merge(velocityContext, stringWriter);
+
+			String contentAsString = stringWriter.toString();
+
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
 				URL url = new URL(System.getProperty("testMgmtServer"));
@@ -237,7 +237,10 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 
 				jsonObject.put("attachment-files", getAttachmentFiles(contentAsString));
 				jsonObject.put("content", contentAsString);
-				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+				
+				int hoursOffset = TimeZone.getTimeZone("Europe/Berlin").getOffset(new Date().getTime())/(3600*1000);
+				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'.000+0"+ hoursOffset +":00'");
+				System.out.println(":::: " + dateFormat.format(totalTimeMeasurement.startedAt()));
 				jsonObject.put("date", dateFormat.format(totalTimeMeasurement.startedAt()));
 				jsonObject.put("testname", testName);
 
