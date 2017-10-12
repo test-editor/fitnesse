@@ -143,7 +143,7 @@ public class SuiteHistoryFormatter extends BaseFormatter implements ExecutionLog
 			String contentAsString = stringWriter.toString();
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
-				URL url = new URL(System.getProperty("testMgmtServer"));
+				URL url = new URL(System.getProperty("testMgmtServer") + "/api/rest/v1/suites/result");
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("POST");
 				conn.setRequestProperty("Content-Type", "application/json");
@@ -153,10 +153,11 @@ public class SuiteHistoryFormatter extends BaseFormatter implements ExecutionLog
 				JSONObject jsonObject = new JSONObject();
 
 				jsonObject.put("content", contentAsString);
+				jsonObject.put("suite", true);
 				int hoursOffset = TimeZone.getTimeZone("Europe/Berlin").getOffset(new Date().getTime())/(3600*1000);
 				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'.000+0"+ hoursOffset +":00'");
 				jsonObject.put("date", dateFormat.format(totalTimeMeasurement.startedAt()));
-				jsonObject.put("testname", getPage().getName());
+				jsonObject.put("name", getPage().getName());
 
 				OutputStreamWriter out = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
 				out.write(jsonObject.toString());

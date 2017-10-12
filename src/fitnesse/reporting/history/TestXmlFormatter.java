@@ -224,7 +224,7 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
-				URL url = new URL(System.getProperty("testMgmtServer"));
+				URL url = new URL(System.getProperty("testMgmtServer")+ "/api/rest/v1/tests/result");
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("POST");
 				conn.setRequestProperty("Content-Type", "application/json");
@@ -235,14 +235,14 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 
 				getAttachmentFiles(contentAsString);
 
-				jsonObject.put("attachment-files", getAttachmentFiles(contentAsString));
+				jsonObject.put("attachmentFiles", getAttachmentFiles(contentAsString));
 				jsonObject.put("content", contentAsString);
+				jsonObject.put("suite", false);
 				
 				int hoursOffset = TimeZone.getTimeZone("Europe/Berlin").getOffset(new Date().getTime())/(3600*1000);
 				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'.000+0"+ hoursOffset +":00'");
-				System.out.println(":::: " + dateFormat.format(totalTimeMeasurement.startedAt()));
 				jsonObject.put("date", dateFormat.format(totalTimeMeasurement.startedAt()));
-				jsonObject.put("testname", testName);
+				jsonObject.put("name", testName);
 
 				OutputStreamWriter out = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
 				out.write(jsonObject.toString());
@@ -296,7 +296,7 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 				jsonObject.put("content", DatatypeConverter.printBase64Binary(getBytesFromFile(attachmentFile)));
 				attachmentFiles.put(filename, jsonObject);
 			} catch (IOException e) {
-				LOG.severe("Error while reading File '" + filename + "'");
+				LOG.severe("Error while reading File '" + filename + "' Message '" + e.getMessage() + "'");
 			}
 		}
 
