@@ -38,6 +38,8 @@ import fitnesse.responders.files.UploadResponder;
 import fitnesse.responders.refactoring.*;
 import fitnesse.responders.run.StopTestResponder;
 import fitnesse.responders.search.*;
+import fitnesse.responders.team.ChangeListResponder;
+import fitnesse.responders.team.CommitResponder;
 import fitnesse.responders.testHistory.HistoryComparerResponder;
 import fitnesse.responders.testHistory.PageHistoryResponder;
 import fitnesse.responders.testHistory.PurgeHistoryResponder;
@@ -72,7 +74,7 @@ public class ResponderFactory {
     addResponder("rollback", RollbackResponder.class);
     addResponder("names", NameWikiPageResponder.class);
     addResponder("properties", PropertiesResponder.class);
-    addResponder("saveProperties", SavePropertiesResponder.class);
+    addResponder("saveProperties", SavePropertiesResponder.class); 
     addResponder("executeSearchProperties", ExecuteSearchPropertiesResponder.class);
     addResponder("whereUsed", WhereUsedResponder.class);
     addResponder("refactor", RefactorPageResponder.class);
@@ -104,6 +106,8 @@ public class ResponderFactory {
     addResponder("replace", SearchReplaceResponder.class);
     addResponder("overview", SuiteOverviewResponder.class);
     addResponder("compareVersions", VersionComparerResponder.class);
+    addResponder("commit", CommitResponder.class);
+    addResponder("changes", ChangeListResponder.class);
     
     addResponder("pauseTest", TestPauseResponder.class);
     addResponder("resumeTest", TestResumeResponder.class);

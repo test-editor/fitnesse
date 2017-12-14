@@ -1,0 +1,6 @@
+ #if( $error)<div id="commitError">#escape($error)</div>
+ <div id="commitErrorID">#escape($errorID)</div>
+ #end
+  #if( $message)<div id="message">#escape($message)</div>#end
+  #if( $revision)<div id="revision">#escape($revision)</div>#end
+  

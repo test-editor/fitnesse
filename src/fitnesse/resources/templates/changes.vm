@@ -1,0 +1,3 @@
+#foreach( $pchange in $changes )
+    <div id="change">$pchange</div>
+ #end

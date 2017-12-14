@@ -20,7 +20,7 @@
   
 	<target name="all" depends="unit_tests, acceptance_tests" description="Run this target any time you change code or acceptance tests. It will clean, then compile the source, run all the unit test and fitnesse acceptance tests."/>
   
-	<target name="build" depends="clean, compile" description="clean, then compile the source"/>
+	<target name="build" depends="clean, compile, standalone-jar, copy" description="clean, then compile the source"/>
   	
   	<target name="unit_tests" depends="clean, unit_test" description="builds code from scratch, runs all the unit tests"/>
   
@@ -32,6 +32,9 @@
 		<include name="TemplateLibrary/**"/>
 		<exclude name="**/*.zip"/>
 	</zipfileset>
+	<target name="copy">
+        <copy file="C:/dev/workspaces/fitnessePatch/fitnesse/dist/fitnesse-standalone.jar" tofile="C:/Testautomatisierung/FitNesseServer/fitnesse.jar" />
+	</target>
 
 	<target name="run" depends="compile, compile-bootstrap-less, retrieve" description="Start FitNesse from the command line">
         <ivy:cachepath pathid="standalone.classpath" conf="standalone"/>
@@ -239,7 +242,7 @@
 		<delete dir="${classes.dir}" />
 		<delete dir="${test.classes.dir}" />
 		<delete dir="${results.dir}" />
-		<delete dir="${lib.dir}" />
+<!--		<delete dir="${lib.dir}" />-->
 		<delete dir="${dist.dir}" />
 		<delete dir="${javadoc.dir}" />
 		<delete file="updateList"/>

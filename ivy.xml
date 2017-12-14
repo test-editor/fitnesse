@@ -19,7 +19,7 @@
 		<conf name="lesscss" visibility="private"  />
 	</configurations>
 
-	<publications xmlns:e="urn:ant.apache.org:ivy-extras">
+	<publications xmlns:e="urn:ant.apache.org:ivy-extras">         
 		<artifact name="fitnesse" ext="jar" />
 		<artifact name="fitnesse" type="source" ext="jar" e:classifier="sources" />
 		<artifact name="fitnesse" conf="maven" type="pom" ext="pom" />
@@ -28,6 +28,15 @@
 	</publications>
  
 	<dependencies>
+
+		<dependency org="com.sdase.framework" name="trace-token" rev="0.1.23" conf="default,slim,maven->default"/>
+		<dependency org="com.brsanthu" name="migbase64" rev="2.2" conf="default,slim,maven->default"/>
+		<dependency org="org.tmatesoft.svnkit" name="svnkit" rev="1.8.11" conf="default,slim,maven->default"/>
+		<dependency org="org.tmatesoft.sqljet" name="sqljet" rev="1.1.10" conf="default,slim,maven->default"/>
+		<dependency org="org.antlr" name="antlr-runtime" rev="3.2" conf="default,slim,maven->default"/>
+		<dependency org="de.regnis.q.sequence" name="sequence-library" rev="1.0.3" conf="default,slim,maven->default"/>
+
+    
 		<dependency org="org.htmlparser" name="htmlparser" rev="2.1" conf="default,slim,maven->default">
 			<exclude org="com.sun" module="tools" />
 		</dependency>
