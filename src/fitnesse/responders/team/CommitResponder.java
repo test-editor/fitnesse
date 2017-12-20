@@ -44,8 +44,8 @@ public class CommitResponder implements Responder {
 		Maybe<String> rootPath = variableSource.findVariable("APPLICATION_WORK");
 
 		String testCase = PathParser.parse(request.getResource()).toString();
-		String username = request.getInput("username");
-		String password = request.getInput("password");
+		String user = request.getHeader("user");
+		String password = request.getHeader("password");
 		String comment = request.getInput("comment");
 		
 		HtmlPage page = context.pageFactory.newPage();
@@ -92,8 +92,8 @@ public class CommitResponder implements Responder {
 		String svnComment = comment != null ? comment : "";
 		try {
 			ISVNAuthenticationManager authManager = null;
-			if(username != null && password != null){
-				authManager = SVNWCUtil.createDefaultAuthenticationManager(username,password.toCharArray());
+			if(user != null && password != null){
+				authManager = SVNWCUtil.createDefaultAuthenticationManager(user,password.toCharArray());
 			}else {
 				authManager = SVNWCUtil.createDefaultAuthenticationManager();
 			}
