@@ -22,12 +22,14 @@ import org.apache.commons.lang.StringUtils;
 import fitnesse.Responder;
 import fitnesse.http.Request;
 import fitnesse.responders.editing.AddChildPageResponder;
+import fitnesse.responders.editing.AllActionGroupsResponder;
 import fitnesse.responders.editing.EditResponder;
 import fitnesse.responders.editing.NewPageResponder;
 import fitnesse.responders.editing.PropertiesResponder;
 import fitnesse.responders.editing.SavePropertiesResponder;
 import fitnesse.responders.editing.SaveResponder;
 import fitnesse.responders.editing.SymbolicLinkResponder;
+import fitnesse.responders.editing.TechnicalBindingTypeCollection;
 import fitnesse.responders.files.CreateDirectoryResponder;
 import fitnesse.responders.files.DeleteConfirmationResponder;
 import fitnesse.responders.files.DeleteFileResponder;
@@ -112,6 +114,9 @@ public class ResponderFactory {
     addResponder("pauseTest", TestPauseResponder.class);
     addResponder("resumeTest", TestResumeResponder.class);
     addResponder("stepwiseTest", TestRunStepwiseResponder.class);
+    addResponder("AllActionGroups.xml", AllActionGroupsResponder.class);
+    addResponder("TechnicalBindingTypeCollection.xml", TechnicalBindingTypeCollection.class);
+    
     
     
     filterMap = new HashMap<String, List<Responder>>();
