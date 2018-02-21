@@ -20,9 +20,6 @@ import fitnesse.html.template.PageTitle;
 import fitnesse.http.Request;
 import fitnesse.http.Response;
 import fitnesse.http.SimpleResponse;
-import fitnesse.wiki.PathParser;
-import fitnesse.wiki.SystemVariableSource;
-import fitnesse.wikitext.parser.Maybe;
 
 public class ChangeListResponder implements Responder {
 

@@ -24,6 +24,9 @@ import fitnesse.http.Request;
 import fitnesse.responders.editing.AddChildPageResponder;
 import fitnesse.responders.editing.AllActionGroupsResponder;
 import fitnesse.responders.editing.EditResponder;
+import fitnesse.responders.editing.ListeScenarioCallsResponder;
+import fitnesse.responders.editing.ListeSuitesResponder;
+import fitnesse.responders.editing.ListeTestsResponder;
 import fitnesse.responders.editing.NewPageResponder;
 import fitnesse.responders.editing.PropertiesResponder;
 import fitnesse.responders.editing.SavePropertiesResponder;
@@ -42,6 +45,7 @@ import fitnesse.responders.run.StopTestResponder;
 import fitnesse.responders.search.*;
 import fitnesse.responders.team.ChangeListResponder;
 import fitnesse.responders.team.CommitResponder;
+import fitnesse.responders.team.StatusResponder;
 import fitnesse.responders.testHistory.HistoryComparerResponder;
 import fitnesse.responders.testHistory.PageHistoryResponder;
 import fitnesse.responders.testHistory.PurgeHistoryResponder;
@@ -110,12 +114,17 @@ public class ResponderFactory {
     addResponder("compareVersions", VersionComparerResponder.class);
     addResponder("commit", CommitResponder.class);
     addResponder("changes", ChangeListResponder.class);
+    addResponder("status", StatusResponder.class);
     
     addResponder("pauseTest", TestPauseResponder.class);
     addResponder("resumeTest", TestResumeResponder.class);
     addResponder("stepwiseTest", TestRunStepwiseResponder.class);
     addResponder("AllActionGroups.xml", AllActionGroupsResponder.class);
     addResponder("TechnicalBindingTypeCollection.xml", TechnicalBindingTypeCollection.class);
+    addResponder("suites", ListeSuitesResponder.class);
+    addResponder("scenarioCalls", ListeScenarioCallsResponder.class);
+    addResponder("tests", ListeTestsResponder.class);
+    
     
     
     

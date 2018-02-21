@@ -1,0 +1,19 @@
+{
+  "scenarioCalls": [
+#foreach( $scenarioCall in $scenarioCalls )
+    {
+      "name": "$scenarioCall.name",
+      "path": "$scenarioCall.path"
+#if(!$scenarioCall.parameters.empty),
+      "parameters": [
+#foreach( $parameter in $scenarioCall.parameters )
+       {
+          "parameter": "$parameter"
+        }#if( $foreach.hasNext ),#end
+#end
+		]
+#end
+    }#if( $foreach.hasNext ),#end
+ #end
+ 	]
+ }

@@ -1,0 +1,5 @@
+{	
+	"fitnesseRunning":$fitnesseRunning,
+	"svnUpToDate":$svnUpToDate,
+	"revisionNumber":$revisionNumber
+}

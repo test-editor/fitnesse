@@ -7,6 +7,7 @@ import fitnesse.FitNesseContext;
 import fitnesse.Updater;
 import fitnesse.components.PluginsClassLoader;
 import fitnesse.reporting.ExitCodeListener;
+import fitnesse.tm.services.TestCaseDataProviderInstance;
 import fitnesse.updates.UpdaterImplementation;
 
 import java.io.*;
@@ -63,6 +64,8 @@ public class FitNesseMain {
     }
 
     FitNesseContext context = contextConfigurator.makeFitNesseContext();
+    
+    initTestManagementFunctionality(context);
 
     logStartupInfo(context);
 
@@ -75,7 +78,11 @@ public class FitNesseMain {
     return launch(context);
   }
 
-  private boolean update(FitNesseContext context) throws IOException {
+  private void initTestManagementFunctionality(FitNesseContext context) throws IOException {
+	  TestCaseDataProviderInstance.init(context.getRootPagePath(), "NeuelebenTests");
+  }
+
+private boolean update(FitNesseContext context) throws IOException {
     if (!"true".equalsIgnoreCase(context.getProperty(OMITTING_UPDATES.getKey()))) {
       Updater updater = new UpdaterImplementation(context);
       return updater.update();
