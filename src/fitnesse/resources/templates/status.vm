@@ -1,5 +1,5 @@
 {	
-	"fitnesseRunning":$fitnesseRunning,
+	"fitnesseStatus":$fitnesseStatus,
 	"svnUpToDate":$svnUpToDate,
 	"revisionNumber":$revisionNumber
 }

@@ -18,8 +18,8 @@ import java.util.List;
 
 public interface TestCaseDataProvider {
 
-	Collection<Test> getAllTests();
-	Collection<ScenarioCall> getAllScenarioCalls();
+	Collection<Test> getAllTests() throws IOException;
+	Collection<ScenarioCall> getAllScenarioCalls() throws IOException;
 	Collection<Suite> getAllSuites() throws IOException;
 
 	public static class ScenarioCall {

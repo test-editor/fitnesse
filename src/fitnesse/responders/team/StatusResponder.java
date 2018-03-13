@@ -25,15 +25,21 @@ import fitnesse.http.SimpleResponse;
 public class StatusResponder implements Responder {
 
 	private SvnService svnService = SvnService.getInstance();
+
 	public StatusResponder() {
 	}
 
 	@Override
 	public Response makeResponse(FitNesseContext context, Request request) throws Exception {
-		String localRoot = "C:\\Testautomatisierung\\FitNessePages\\NeuelebenTests";
-		String remoteRoot = "http://svn1.system.local/anonsvn/lvneu/NLv/testautomatisierung/trunk/";
+		final String localRoot = "C:\\Testautomatisierung\\FitNessePages\\NeuelebenTests";
+		final String remoteRoot = "http://svn1.system.local/anonsvn/lvneu/NLv/testautomatisierung/trunk/";
 		VelocityContext velocityContext = new VelocityContext();
-		velocityContext.put("fitnesseRunning", true);
+		if(svnService.updating){
+			velocityContext.put("fitnesseStatus", "UPDATING");
+		}else {
+			velocityContext.put("fitnesseStatus", "RUNNING");
+		}
+
 		long localRevisionsNumber = svnService.getLocalRevisionsNumber(localRoot);
 
 		if ((localRevisionsNumber < svnService.getRemoteRevisionsNumber(remoteRoot))) {
@@ -50,7 +56,7 @@ public class StatusResponder implements Responder {
 		return response;
 	}
 
-	private static class SvnService {
+	public static class SvnService {
 		private static SvnService instance = new SvnService();
 		private boolean updating = false;
 
@@ -78,33 +84,43 @@ public class StatusResponder implements Responder {
 			return doInfo.getRevision().getNumber();
 		}
 
-		public synchronized void updateSVN(String localRoot) {
-			ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager();
-			File file = new File(localRoot);
-
-			SVNClientManager cm = null;
-			SVNUpdateClient uc = null;
-			try {
-				cm = SVNClientManager.newInstance(SVNWCUtil.createDefaultOptions(true), authManager);
-				uc = cm.getUpdateClient();
-				uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
-			} catch (SVNException e) {
-				if (uc != null) {
-					SVNWCClient wcc = cm.getWCClient();
-					try {
-						wcc.doCleanup(file,true);
-						uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
-					} catch (SVNException ex) {
-						System.out.println(e);
-						ex.printStackTrace();
-					}
-				}
-			} finally {
-				if (cm != null) {
-					cm.dispose();
-				}
-				updating = false;
+		public synchronized void updateSVN(final String localRoot) {
+			if(updating){
+				return;
 			}
+			updating = true;
+			Thread thread = new Thread() {
+				public void run() {
+					ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager();
+					File file = new File(localRoot);
+
+					SVNClientManager cm = null;
+					SVNUpdateClient uc = null;
+					try {
+						cm = SVNClientManager.newInstance(SVNWCUtil.createDefaultOptions(true), authManager);
+						uc = cm.getUpdateClient();
+						uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
+					} catch (SVNException e) {
+						if (uc != null) {
+							SVNWCClient wcc = cm.getWCClient();
+							try {
+								wcc.doCleanup(file, true);
+								uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
+							} catch (SVNException ex) {
+								System.out.println(e);
+								ex.printStackTrace();
+							}
+						}
+					} finally {
+						if (cm != null) {
+							cm.dispose();
+						}
+						updating = false;
+					}
+
+				};
+			};
+			thread.start();
 		}
 
 		private SVNWCClient getClient() {
@@ -119,5 +135,4 @@ public class StatusResponder implements Responder {
 		}
 
 	}
-
 }
