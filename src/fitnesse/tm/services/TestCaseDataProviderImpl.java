@@ -32,7 +32,6 @@ import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
-import fitnesse.responders.team.StatusResponder.SvnService;
 import fitnesse.tm.parser.DoubleLineMetaDataParser;
 import fitnesse.tm.parser.MetaDataParser;
 import fitnesse.tm.parser.RegExpMetaDataParser;
@@ -40,7 +39,6 @@ import fitnesse.tm.parser.StandardDropDownMetaDataParser;
 
 public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 
-	private SvnService svnService = SvnService.getInstance();
 	private static final Logger logger = Logger.getLogger(TestCaseDataProviderImpl.class.getName());
 
 	public static final int ERROR_CODE_NOT_A_DIRECTORY = -1;
@@ -57,7 +55,6 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 	private List<ScenarioCall> scenarioCalls = new ArrayList<ScenarioCall>();
 	private List<Suite> suites = new ArrayList<Suite>();
 	private Collection<Test> tests = new ArrayList<Test>();
-	private long revisionsNumber;
 
 	static private Set<String> skipRootFolder = null;
 
@@ -75,22 +72,12 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 		}
 		this.rootPath = rootPath;
 		this.projectName = projectName;
-		this.updateInternalData();
-	}
-	private void updateInternalData() throws IOException {
-		
-		if(revisionsNumber == svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName)){
-			return;
-		}
-		this.revisionsNumber = svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName);
-		logger.log(Level.INFO, "updating data for revision " + revisionsNumber);
 		int errorCode = readProjectFiles();
 		if (errorCode < 0) {
 			throw new RuntimeException("Error " + errorCode + " during reading fitnessFiles");
 		}
         listFiles(new File(rootPath), rootPath, suites);
 		readTests();
-		
 	}
 	private int readProjectFiles() {
 
@@ -439,7 +426,6 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 
 	@Override
 	public Collection<ScenarioCall> getAllScenarioCalls() throws IOException {
-		this.updateInternalData();
 		return scenarioCalls;
 	}
 
@@ -512,17 +498,15 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 
 	@Override
 	public Collection<Suite> getAllSuites() throws IOException {
-		updateInternalData();
 		return suites;
 	}
 
 	@Override
 	public Collection<Test> getAllTests() throws IOException {
-		updateInternalData();
 		return tests;
 	}
 	public static void main(String args[]) throws IOException {
-		String rootPath = "C:\\Testautomatisierung\\FitNessePages91";
+		String rootPath = "C:\\Testautomatisierung\\FitNessePages";
 		String projectName = "NeuelebenTests";
 		TestCaseDataProviderImpl TestCaseDataProviderImpl = new TestCaseDataProviderImpl(rootPath, projectName);
 		for(Suite suite : TestCaseDataProviderImpl.getAllSuites()){

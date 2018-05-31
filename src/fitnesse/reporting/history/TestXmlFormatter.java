@@ -216,12 +216,14 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 		template.merge(velocityContext, writer);
 		writer.close();
 
+        System.out.println("nun aber "+ System.getProperty("testMgmtServer"));
 		if (System.getProperty("testMgmtServer") != null) {
 			StringWriter stringWriter = new StringWriter();
 			template.merge(velocityContext, stringWriter);
 
 			String contentAsString = stringWriter.toString();
 
+			System.out.println("pushing result to " + System.getProperty("testMgmtServer"));
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
 				URL url = new URL(System.getProperty("testMgmtServer")+ "/api/rest/v1/tests/result");

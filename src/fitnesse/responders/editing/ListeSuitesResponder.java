@@ -8,7 +8,6 @@ import fitnesse.http.Request;
 import fitnesse.http.Response;
 import fitnesse.http.Response.Format;
 import fitnesse.http.SimpleResponse;
-import fitnesse.tm.services.TestCaseDataProvider;
 import fitnesse.tm.services.TestCaseDataProviderInstance;
 
 public class ListeSuitesResponder implements Responder {
@@ -16,10 +15,8 @@ public class ListeSuitesResponder implements Responder {
 	@Override
 	public Response makeResponse(FitNesseContext context, Request request) throws Exception {
 		
-		TestCaseDataProvider testCaseDataProvider = TestCaseDataProviderInstance.getInstance("NeuelebenTests");
-
 	    VelocityContext velocityContext = new VelocityContext();
-	    velocityContext.put("suites",  testCaseDataProvider.getAllSuites());
+	    velocityContext.put("suites",  TestCaseDataProviderInstance.getAllSuites());
 
 	    SimpleResponse response = new SimpleResponse();
 	    response.setContentType(Format.XML);

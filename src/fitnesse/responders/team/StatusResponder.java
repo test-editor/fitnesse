@@ -1,6 +1,7 @@
 package fitnesse.responders.team;
 
 import java.io.File;
+import java.util.logging.Logger;
 
 import org.apache.velocity.VelocityContext;
 import org.tmatesoft.svn.core.SVNDepth;
@@ -21,10 +22,12 @@ import fitnesse.http.Request;
 import fitnesse.http.Response;
 import fitnesse.http.Response.Format;
 import fitnesse.http.SimpleResponse;
+import fitnesse.tm.services.TestCaseDataProviderInstance;
 
 public class StatusResponder implements Responder {
 
 	private SvnService svnService = SvnService.getInstance();
+	private static final Logger logger = Logger.getLogger(TestCaseDataProviderInstance.class.getName());
 
 	public StatusResponder() {
 	}
@@ -41,12 +44,12 @@ public class StatusResponder implements Responder {
 		}
 
 		long localRevisionsNumber = svnService.getLocalRevisionsNumber(localRoot);
-
-		if ((localRevisionsNumber < svnService.getRemoteRevisionsNumber(remoteRoot))) {
+		boolean svnUpdateNeeded = localRevisionsNumber < svnService.getRemoteRevisionsNumber(remoteRoot);
+		if (svnUpdateNeeded) {
+			logger.info("call for update");
 			svnService.updateSVN(localRoot);
-			localRevisionsNumber = svnService.getLocalRevisionsNumber(localRoot);
 		}
-		velocityContext.put("svnUpToDate", localRevisionsNumber == svnService.getRemoteRevisionsNumber(remoteRoot));
+		velocityContext.put("svnUpToDate", !svnUpdateNeeded);
 		velocityContext.put("revisionNumber", localRevisionsNumber);
 
 		SimpleResponse response = new SimpleResponse();
@@ -88,6 +91,7 @@ public class StatusResponder implements Responder {
 			if(updating){
 				return;
 			}
+			logger.info("start updating for ");
 			updating = true;
 			Thread thread = new Thread() {
 				public void run() {
@@ -117,7 +121,9 @@ public class StatusResponder implements Responder {
 						}
 						updating = false;
 					}
-
+					logger.info("done svn update");
+					TestCaseDataProviderInstance.startUpdate();
+					logger.info("done updating");
 				};
 			};
 			thread.start();
