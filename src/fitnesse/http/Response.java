@@ -18,6 +18,7 @@ public abstract class Response {
     XML("text/xml"),
     HTML("text/html; charset=" + FileUtil.CHARENCODING),
     TEXT("text/text"),
+    TEXT_UTF8("text/text; charset=" + FileUtil.CHARENCODING),
     JSON("text/json"),
     JUNIT("text/junit");
     

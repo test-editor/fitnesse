@@ -226,7 +226,7 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 			System.out.println("pushing result to " + System.getProperty("testMgmtServer"));
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
-				URL url = new URL(System.getProperty("testMgmtServer")+ "/api/rest/v1/tests/result");
+				URL url = new URL(System.getProperty("testMgmtServer")+ "/api/rest/v1/upload/test");
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("POST");
 				conn.setRequestProperty("Content-Type", "application/json");

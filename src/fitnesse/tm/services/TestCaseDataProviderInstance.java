@@ -42,20 +42,22 @@ public class TestCaseDataProviderInstance {
 		startUpdate();
 		return instance.getAllSuites();
 	}
-
+	static public long getRevisionNumber() {
+		return revisionsNumber;
+	}
 	public static synchronized void startUpdate() {
-		logger.info("Check für " + revisionsNumber);
+		logger.info("Check for " + revisionsNumber);
 		if (revisionsNumber == svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName)) {
 			return;
 		}
-		revisionsNumber = svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName);
-		logger.info("updating to version " + revisionsNumber);
+		logger.info("updating to version " + svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName));
 		
 		new Thread() {
 			public void run() {
 				try {
 					TestCaseDataProviderImpl newInstance = new TestCaseDataProviderImpl(rootPath, projectName);
 					instance = newInstance;
+					revisionsNumber = svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName);
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}

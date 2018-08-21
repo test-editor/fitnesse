@@ -33,3 +33,4 @@ tmp/*
 /test-classes/
 /bin/
 .metadata/
+node_modules/

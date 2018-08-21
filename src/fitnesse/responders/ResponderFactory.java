@@ -37,8 +37,10 @@ import fitnesse.responders.files.CreateDirectoryResponder;
 import fitnesse.responders.files.DeleteConfirmationResponder;
 import fitnesse.responders.files.DeleteFileResponder;
 import fitnesse.responders.files.FileResponder;
+import fitnesse.responders.files.LogFileResponder;
 import fitnesse.responders.files.RenameFileConfirmationResponder;
 import fitnesse.responders.files.RenameFileResponder;
+import fitnesse.responders.files.TailLogFileResponder;
 import fitnesse.responders.files.UploadResponder;
 import fitnesse.responders.refactoring.*;
 import fitnesse.responders.run.StopTestResponder;
@@ -124,6 +126,8 @@ public class ResponderFactory {
     addResponder("suites", ListeSuitesResponder.class);
     addResponder("scenarioCalls", ListeScenarioCallsResponder.class);
     addResponder("tests", ListeTestsResponder.class);
+    addResponder("log", LogFileResponder.class);
+    addResponder("taillog", TailLogFileResponder.class);
     
     
     

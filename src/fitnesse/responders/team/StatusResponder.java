@@ -37,24 +37,29 @@ public class StatusResponder implements Responder {
 		final String localRoot = "C:\\Testautomatisierung\\FitNessePages\\NeuelebenTests";
 		final String remoteRoot = "http://svn1.system.local/anonsvn/lvneu/NLv/testautomatisierung/trunk/";
 		VelocityContext velocityContext = new VelocityContext();
-		if(svnService.updating){
-			velocityContext.put("fitnesseStatus", "UPDATING");
+		if(svnService.error){
+			velocityContext.put("fitnesseStatus", "\"DOWN\"");
+		} else if(svnService.updating){
+			velocityContext.put("fitnesseStatus", "\"UPDATING\"");
 		}else {
-			velocityContext.put("fitnesseStatus", "RUNNING");
+			velocityContext.put("fitnesseStatus", "\"RUNNING\"");
 		}
 
-		long localRevisionsNumber = svnService.getLocalRevisionsNumber(localRoot);
+		long localRevisionsNumber = TestCaseDataProviderInstance.getRevisionNumber();
 		boolean svnUpdateNeeded = localRevisionsNumber < svnService.getRemoteRevisionsNumber(remoteRoot);
 		if (svnUpdateNeeded) {
-			logger.info("call for update");
+			logger.info("call for update for " + svnService.getRemoteRevisionsNumber(remoteRoot));
+			logger.info("localRevisionsNumber " + localRevisionsNumber);
+			logger.info("TestCaseDataProviderInstance.getRevisionNumber() " + TestCaseDataProviderInstance.getRevisionNumber());
 			svnService.updateSVN(localRoot);
 		}
 		velocityContext.put("svnUpToDate", !svnUpdateNeeded);
-		velocityContext.put("revisionNumber", localRevisionsNumber);
+		velocityContext.put("revisionNumber", TestCaseDataProviderInstance.getRevisionNumber());
 
 		SimpleResponse response = new SimpleResponse();
 		response.setContentType(Format.JSON);
 		response.setContent(context.pageFactory.render(velocityContext, "status.vm"));
+		response.addHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
 		response.setStatus(200);
 		return response;
 	}
@@ -62,6 +67,7 @@ public class StatusResponder implements Responder {
 	public static class SvnService {
 		private static SvnService instance = new SvnService();
 		private boolean updating = false;
+		private boolean error = false;
 
 		private Long lastLocalRevisionNumber;
 
@@ -95,6 +101,7 @@ public class StatusResponder implements Responder {
 			updating = true;
 			Thread thread = new Thread() {
 				public void run() {
+					error = false;
 					ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager();
 					File file = new File(localRoot);
 
@@ -105,17 +112,18 @@ public class StatusResponder implements Responder {
 						uc = cm.getUpdateClient();
 						uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
 					} catch (SVNException e) {
-						if (uc != null) {
-							SVNWCClient wcc = cm.getWCClient();
-							try {
-								wcc.doCleanup(file, true);
-								uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
-							} catch (SVNException ex) {
-								System.out.println(e);
-								ex.printStackTrace();
-							}
+						SVNWCClient wcc = cm.getWCClient();
+						try {
+							wcc.doCleanup(file, true);
+							uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
+						} catch (SVNException ex) {
+							error = true;
+							e.printStackTrace(System.err);
 						}
-					} finally {
+					} catch(Exception e){
+						error = true;
+						e.printStackTrace(System.err);
+				    }finally {
 						if (cm != null) {
 							cm.dispose();
 						}
@@ -127,6 +135,7 @@ public class StatusResponder implements Responder {
 				};
 			};
 			thread.start();
+			logger.info("thread for updating was started");
 		}
 
 		private SVNWCClient getClient() {

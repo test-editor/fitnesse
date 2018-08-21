@@ -192,7 +192,6 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 	}
 
 	private void resolveSzenariosReferences(String testCase, String testCaseContent) {
-		logger.log(Level.FINE, "resolving testcase '" + testCase + "'");
 		String includeKeyString = "!include <" + projectName + ".";
 
 		StringTokenizer stringTokenizer = new StringTokenizer(testCaseContent, "\n");

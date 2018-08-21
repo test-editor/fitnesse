@@ -136,16 +136,14 @@ public class SuiteHistoryFormatter extends BaseFormatter implements ExecutionLog
         Template template = velocityEngine.getTemplate("suiteHistoryXML.vm");
         template.merge(velocityContext, writer);
 
-        System.out.println("nun aber "+ System.getProperty("testMgmtServer"));
 		if (System.getProperty("testMgmtServer") != null) {
 			StringWriter stringWriter = new StringWriter();
 			template.merge(velocityContext, stringWriter);
 	
 			String contentAsString = stringWriter.toString();
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
-			System.out.println("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
-				URL url = new URL(System.getProperty("testMgmtServer") + "/api/rest/v1/suites/result");
+				URL url = new URL(System.getProperty("testMgmtServer") + "/api/rest/v1/upload/suites");
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("POST");
 				conn.setRequestProperty("Content-Type", "application/json");
