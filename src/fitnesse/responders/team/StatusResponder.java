@@ -36,23 +36,25 @@ public class StatusResponder implements Responder {
 	public Response makeResponse(FitNesseContext context, Request request) throws Exception {
 		final String localRoot = "C:\\Testautomatisierung\\FitNessePages\\NeuelebenTests";
 		final String remoteRoot = "http://svn1.system.local/anonsvn/lvneu/NLv/testautomatisierung/trunk/";
+		long localRevisionsNumber = TestCaseDataProviderInstance.getRevisionNumber();
+		boolean svnUpdateNeeded = localRevisionsNumber < svnService.getRemoteRevisionsNumber(remoteRoot);
+		if (!svnService.updating && svnUpdateNeeded) {
+			logger.info("call for update for " + svnService.getRemoteRevisionsNumber(remoteRoot));
+			logger.info("localRevisionsNumber " + localRevisionsNumber);
+			logger.info("TestCaseDataProviderInstance.getRevisionNumber() "
+					+ TestCaseDataProviderInstance.getRevisionNumber());
+			svnService.updateSVN(localRoot);
+		}
+
 		VelocityContext velocityContext = new VelocityContext();
-		if(svnService.error){
+		if (svnService.error) {
 			velocityContext.put("fitnesseStatus", "\"DOWN\"");
-		} else if(svnService.updating){
+		} else if (svnService.updating) {
 			velocityContext.put("fitnesseStatus", "\"UPDATING\"");
-		}else {
+		} else {
 			velocityContext.put("fitnesseStatus", "\"RUNNING\"");
 		}
 
-		long localRevisionsNumber = TestCaseDataProviderInstance.getRevisionNumber();
-		boolean svnUpdateNeeded = localRevisionsNumber < svnService.getRemoteRevisionsNumber(remoteRoot);
-		if (svnUpdateNeeded) {
-			logger.info("call for update for " + svnService.getRemoteRevisionsNumber(remoteRoot));
-			logger.info("localRevisionsNumber " + localRevisionsNumber);
-			logger.info("TestCaseDataProviderInstance.getRevisionNumber() " + TestCaseDataProviderInstance.getRevisionNumber());
-			svnService.updateSVN(localRoot);
-		}
 		velocityContext.put("svnUpToDate", !svnUpdateNeeded);
 		velocityContext.put("revisionNumber", TestCaseDataProviderInstance.getRevisionNumber());
 
@@ -61,6 +63,8 @@ public class StatusResponder implements Responder {
 		response.setContent(context.pageFactory.render(velocityContext, "status.vm"));
 		response.addHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
 		response.setStatus(200);
+		logger.info("fitnesseStatus '" + velocityContext.get("fitnesseStatus") + "'; SVN-Update '"
+				+ velocityContext.get("svnUpToDate") + "', Revisionsnummer '" + velocityContext.get("revisionNumber") + "'");
 		return response;
 	}
 
@@ -94,7 +98,7 @@ public class StatusResponder implements Responder {
 		}
 
 		public synchronized void updateSVN(final String localRoot) {
-			if(updating){
+			if (updating) {
 				return;
 			}
 			logger.info("start updating for ");
@@ -111,6 +115,7 @@ public class StatusResponder implements Responder {
 						cm = SVNClientManager.newInstance(SVNWCUtil.createDefaultOptions(true), authManager);
 						uc = cm.getUpdateClient();
 						uc.doUpdate(new File[] { file }, SVNRevision.HEAD, SVNDepth.INFINITY, true, true);
+						logger.info("done svn update");
 					} catch (SVNException e) {
 						SVNWCClient wcc = cm.getWCClient();
 						try {
@@ -120,18 +125,18 @@ public class StatusResponder implements Responder {
 							error = true;
 							e.printStackTrace(System.err);
 						}
-					} catch(Exception e){
+					} catch (Exception e) {
 						error = true;
 						e.printStackTrace(System.err);
-				    }finally {
+					} finally {
 						if (cm != null) {
 							cm.dispose();
 						}
 						updating = false;
 					}
-					logger.info("done svn update");
+					logger.info("start update TestCaseDataProviderInstance");
 					TestCaseDataProviderInstance.startUpdate();
-					logger.info("done updating");
+					logger.info("is started");
 				};
 			};
 			thread.start();

@@ -50,6 +50,7 @@ public class TestCaseDataProviderInstance {
 		if (revisionsNumber == svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName)) {
 			return;
 		}
+		revisionsNumber = svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName);
 		logger.info("updating to version " + svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName));
 		
 		new Thread() {
@@ -57,7 +58,6 @@ public class TestCaseDataProviderInstance {
 				try {
 					TestCaseDataProviderImpl newInstance = new TestCaseDataProviderImpl(rootPath, projectName);
 					instance = newInstance;
-					revisionsNumber = svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName);
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
