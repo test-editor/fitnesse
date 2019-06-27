@@ -2,7 +2,9 @@
 // Released under the terms of the CPL Common Public License version 1.0.
 package fitnesse.reporting.history;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,14 +17,17 @@ import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -57,6 +62,14 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 	private StringBuilder outputBuffer;
 	protected final TestExecutionReport testResponse;
 	private TestExecutionReport.TestResult currentResult;
+	private static final int BUFFER = 1024;
+
+	// ** Für Tests //
+	protected TestXmlFormatter() {
+		this.context = null;
+		this.writerFactory = null;
+		this.testResponse = null;
+	}
 
 	public TestXmlFormatter(FitNesseContext context, final WikiPage page, WriterFactory writerFactory) {
 		super(page);
@@ -216,17 +229,15 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 		template.merge(velocityContext, writer);
 		writer.close();
 
-        System.out.println("nun aber "+ System.getProperty("testMgmtServer"));
 		if (System.getProperty("testMgmtServer") != null) {
 			StringWriter stringWriter = new StringWriter();
 			template.merge(velocityContext, stringWriter);
 
 			String contentAsString = stringWriter.toString();
 
-			System.out.println("pushing result to " + System.getProperty("testMgmtServer"));
 			LOG.fine("pushing result to " + System.getProperty("testMgmtServer"));
 			try {
-				URL url = new URL(System.getProperty("testMgmtServer")+ "/api/rest/v1/upload/test");
+				URL url = new URL(System.getProperty("testMgmtServer") + "/api/rest/v1/upload/test");
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("POST");
 				conn.setRequestProperty("Content-Type", "application/json");
@@ -234,18 +245,27 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 				conn.connect();
 
 				JSONObject jsonObject = new JSONObject();
-
-				getAttachmentFiles(contentAsString);
-
-				jsonObject.put("attachmentFiles", getAttachmentFiles(contentAsString));
-				jsonObject.put("content", contentAsString);
-				jsonObject.put("suite", false);
+				List<JSONObject> attachmentFiles = getAttachmentFiles(contentAsString);
+				JSONObject batchFiles = getAttachmentDirs(contentAsString, "batchFiles");
+				LOG.info("adding batchFiles " + batchFiles + " to the attachmentFiles");
+				if(batchFiles != null){
+					attachmentFiles.add(batchFiles);
+				}
+				JSONObject dopixResults = getAttachmentDirs(contentAsString, "dopixResults");
+				LOG.info("adding dopixResults " + batchFiles + " to the attachmentFiles");
+				if(dopixResults != null){
+					attachmentFiles.add(dopixResults);
+				}
 				
-				int hoursOffset = TimeZone.getTimeZone("Europe/Berlin").getOffset(new Date().getTime())/(3600*1000);
-				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'.000+0"+ hoursOffset +":00'");
+				jsonObject.put("attachmentFiles", attachmentFiles);
+				jsonObject.put("content", contentAsString);
+				jsonObject.put("resultType", "TEST");
+
+				int hoursOffset = TimeZone.getTimeZone("Europe/Berlin").getOffset(new Date().getTime()) / (3600 * 1000);
+				SimpleDateFormat dateFormat = new SimpleDateFormat(
+						"yyyy-MM-dd'T'HH:mm:ss'.000+0" + hoursOffset + ":00'");
 				jsonObject.put("date", dateFormat.format(totalTimeMeasurement.startedAt()));
 				jsonObject.put("name", testName);
-
 				OutputStreamWriter out = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
 				out.write(jsonObject.toString());
 				out.close();
@@ -275,34 +295,88 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 
 	}
 
-	private Collection<JSONObject> getAttachmentFiles(String text) {
+	protected List<JSONObject> getAttachmentFiles(String text) {
 		Map<String, JSONObject> attachmentFiles = new HashMap<String, JSONObject>();
 
 		String regex = "href='?\"?\\/files.+?(?=('|\"))";
 		Matcher matcher = Pattern.compile(regex).matcher(text);
+
 		while (matcher.find()) {
 			String relativeFilePath = matcher.group().substring("href=".length() + 2, matcher.group().length());
 			File attachmentFile = new File(ContextConfigurator.DEFAULT_ROOT + "/" + relativeFilePath);
+			LOG.info("looking for attachmentFile " + attachmentFile.getAbsolutePath());
 			String filename = attachmentFile.getName();
-			JSONObject jsonObject = new JSONObject();
-			jsonObject.put("name", filename);
+			if (!attachmentFiles.containsKey(filename)) {
+				JSONObject jsonObject = new JSONObject();
+				jsonObject.put("name", filename);
 
-			String mimeType = "text/plain";
-			if (filename.endsWith(".png")) {
-				mimeType = "image/png";
-			} else if (filename.endsWith(".xml")) {
-				mimeType = "application/xml";
+				String mimeType = "text/plain";
+				if (filename.endsWith(".png")) {
+					mimeType = "image/png";
+				} else if (filename.endsWith(".xml")) {
+					mimeType = "application/xml";
+				}
+				// Wird für die alte Version benötigt.
+				//jsonObject.put("mimeType", mimeType);
+				// Bitte ändern beim Umstellen auf die neue Version auf OSOT
+				jsonObject.put("filetype", mimeType);
+				try {
+					jsonObject.put("content", DatatypeConverter.printBase64Binary(getBytesFromFile(attachmentFile)));
+					attachmentFiles.put(filename, jsonObject);
+				} catch (IOException e) {
+					LOG.severe("Error while reading File '" + filename + "' Message '" + e.getMessage() + "'");
+				}
 			}
-			jsonObject.put("mimeType", mimeType);
-			try {
-				jsonObject.put("content", DatatypeConverter.printBase64Binary(getBytesFromFile(attachmentFile)));
-				attachmentFiles.put(filename, jsonObject);
-			} catch (IOException e) {
-				LOG.severe("Error while reading File '" + filename + "' Message '" + e.getMessage() + "'");
+		}
+		List<JSONObject> resultValues = new ArrayList<JSONObject>();
+		resultValues.addAll(attachmentFiles.values());
+		return resultValues;
+
+	}
+
+	protected JSONObject getAttachmentDirs(String text, String dirName) {
+		String regex = "href='?\"?(\\/|\\\\)files." + dirName + ".+?(?=('|\"))";
+		Matcher matcher = Pattern.compile(regex).matcher(text);
+
+		while (matcher.find()) {
+			String relativeFilePath = matcher.group().substring("href=".length() + 2, matcher.group().length());
+			File attachmentFile = new File(ContextConfigurator.DEFAULT_ROOT + "/" + relativeFilePath);
+			LOG.info("looking for attachmentFile " + attachmentFile.getAbsolutePath());
+			if (attachmentFile.isDirectory()) {
+				try {
+					ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+					ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream);
+					byte data[] = new byte[BUFFER];
+					for (File file : attachmentFile.listFiles()) {
+						LOG.info("adding " + file.getName() + " to the zip");
+						ZipEntry ze = new ZipEntry(file.getName());
+						zipOutputStream.putNextEntry(ze);
+						FileInputStream fileInputStream = new FileInputStream(file);
+						BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream, BUFFER);
+						int size = -1;
+						while ((size = bufferedInputStream.read(data, 0, BUFFER)) != -1) {
+							zipOutputStream.write(data, 0, size);
+						}
+						bufferedInputStream.close();
+						zipOutputStream.closeEntry();
+					}
+					zipOutputStream.close();
+					JSONObject jsonObject = new JSONObject();
+					jsonObject.put("name", dirName + ".zip");
+
+					// Wird für die alte Version benötigt.
+					//jsonObject.put("mimeType", mimeType);
+					// Bitte ändern beim Umstellen auf die neue Version auf OSOT
+					jsonObject.put("filetype", "application/zip");
+					jsonObject.put("content", DatatypeConverter.printBase64Binary(byteArrayOutputStream.toByteArray()));
+					return jsonObject;
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
 			}
 		}
 
-		return attachmentFiles.values();
+		return null;
 
 	}
 
@@ -376,5 +450,4 @@ public class TestXmlFormatter extends BaseFormatter implements ExecutionLogListe
 	public interface WriterFactory {
 		Writer getWriter(FitNesseContext context, WikiPage page, TestSummary counts, long time) throws IOException;
 	}
-
 }

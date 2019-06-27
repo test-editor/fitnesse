@@ -12,11 +12,15 @@
 package fitnesse.tm.services;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -76,9 +80,10 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 		if (errorCode < 0) {
 			throw new RuntimeException("Error " + errorCode + " during reading fitnessFiles");
 		}
-        listFiles(new File(rootPath), rootPath, suites);
+		listFiles(new File(rootPath), rootPath, suites);
 		readTests();
 	}
+
 	private int readProjectFiles() {
 
 		File rootFolder = new File(rootPath + File.separatorChar + projectName);
@@ -238,7 +243,8 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 
 	public List<String> getSource(String key) {
 		if (!getAllTestCaseNames().contains(key)) {
-			throw new IllegalArgumentException("Der Testfall '" + key + "' wurde nicht im DataProvider gefunden");
+			logger.log(Level.SEVERE, "Der Szenario '" + key + "' wurde nicht im DataProvider gefunden");
+			return new ArrayList<String>();
 		}
 		String content = getSourceInternal(key);
 		List<String> list = new ArrayList<String>();
@@ -261,10 +267,8 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 					name = name.substring(name.lastIndexOf('.') + 1);
 				}
 				if (!getAllSzenarioKeys().contains(scenarioKey)) {
-					logger.log(Level.SEVERE, "Der Szenario '" + scenarioKey + "' wurde nicht im DataProvider gefunden");
-					// throw new IllegalArgumentException(
-					// "Der Szenario '" + scenarioKey + "' wurde nicht im
-					// DataProvider gefunden");
+					list.add("Der Szenario '" + scenarioKey + "' wurde nicht im DataProvider gefunden");
+					return list;
 				}
 				index++;
 				line = index < list.size() ? list.get(index) : "";
@@ -272,14 +276,14 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 					index++;
 					line = index < list.size() ? list.get(index) : "";
 					if (!line.startsWith("|") || !line.endsWith("|")) {
-						throw new IllegalArgumentException(
-								"Zeile nach !|script|' in dem Testfall '" + key + "' hat nicht das richtige Format");
+						list.add("Zeile nach !|script|' in dem Testfall '" + key + "' hat nicht das richtige Format");
+						return list;
 					}
 					String name2 = line.substring(1, line.length() - 1).replaceAll("\\s", "");
 					if (!name.equals(name2)) {
-						throw new IllegalArgumentException(
-								"Der Szenarioname aus dem Include '" + name + "' und dem Aufruf '" + name2
-										+ "' passen in dem Testfall '" + key + "' nicht zusammen");
+						list.add("Der Szenarioname aus dem Include '" + name + "' und dem Aufruf '" + name2
+								+ "' passen in dem Testfall '" + key + "' nicht zusammen");
+						return list;
 					}
 					expandSzenario(list, index, getSourceInternal(scenarioKey));
 				} else {
@@ -292,14 +296,15 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 			if (line.startsWith("!|") && !line.startsWith("!|scenario |")) {
 				String szenarioName = line.substring(2, line.length() - 1).replaceAll("\\s", "");
 				if (!scenarioKeys.containsKey(szenarioName)) {
-					throw new IllegalArgumentException("Szenarienaufruf " + szenarioName + " wurde nicht gefunden");
+					list.add("Szenarienaufruf " + szenarioName + " wurde nicht gefunden");
+					return list;
 				}
 				index++;
 				line = index < list.size() ? list.get(index) : "";
 				List<String> parameter = convertStringToArray(line);
 				if (parameter.size() == 0) {
-					throw new IllegalArgumentException(
-							"Keine Parameter gefunden für Szenario " + szenarioName + " in zeile '" + line + "'");
+					list.add("Keine Parameter gefunden für Szenario " + szenarioName + " in zeile '" + line + "'");
+					return list;
 				}
 				List<String> scenarien = new ArrayList<String>();
 				index++;
@@ -317,7 +322,8 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 						scenarienContent += "\n" + SZENARIO_END_MARKER + "\n";
 						scenarien.add(scenarienContent);
 					} else {
-						logger.log(Level.SEVERE, "no szenario for scenarioKeys '" + scenarioKeys + "'");
+						list.add("no szenario for scenarioKeys '" + scenarioKeys + "'");
+						return list;
 					}
 					index++;
 					line = index < list.size() ? list.get(index) : "";
@@ -333,25 +339,30 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 				line = index < list.size() ? list.get(index) : "";
 				List<String> values = convertStringToArray(line);
 				if (values.size() == 0) {
-					throw new IllegalArgumentException(
-							"Ungültiger Szenarienaufruf in Zeile '" + line + "' für Testfall " + key);
+					list.add("Ungültiger Szenarienaufruf in Zeile '" + line + "' für Testfall " + key);
+					return list;
 				}
 				String szenarioName = values.remove(0);
 				if (szenarioName.endsWith(";")) {
 					szenarioName = szenarioName.substring(0, szenarioName.length() - 1);
 				}
 				if (!scenarioKeys.containsKey(szenarioName)) {
-					throw new IllegalArgumentException("Szenarienaufruf " + szenarioName + " wurde nicht gefunden");
+					list.add("Ungültiger Szenarienaufruf in Zeile '" + line + "' für Testfall " + key);
+					return list;
 				}
 				String scenarioContent = getSourceInternal(scenarioKeys.get(szenarioName));
-				List<String> parameter = getParameterFromScenario(scenarioContent);
-				if (values.size() < parameter.size()) {
-					for (int index2 = values.size(); index2 < parameter.size(); index2++) {
-						values.add("");
+				if (scenarioContent == null) {
+					logger.info("Szenario " + szenarioName + " konnte nicht gefunden werden");
+				} else {
+					List<String> parameter = getParameterFromScenario(scenarioContent);
+					if (values.size() < parameter.size()) {
+						for (int index2 = values.size(); index2 < parameter.size(); index2++) {
+							values.add("");
+						}
 					}
+					scenarioContent = replaceParameter(parameter, values, scenarioContent);
+					expandSzenario(list, index, scenarioContent);
 				}
-				scenarioContent = replaceParameter(parameter, values, scenarioContent);
-				expandSzenario(list, index, scenarioContent);
 			}
 		}
 		return list;
@@ -374,6 +385,9 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 
 	private List<String> getParameterFromScenario(String scenarioContent) {
 		List<String> list = new ArrayList<String>();
+		if (scenarioContent == null) {
+			return list;
+		}
 		list.addAll(Arrays.asList(scenarioContent.split("\n")));
 		Iterator<String> lineIterator = list.iterator();
 		String firstLine = null;
@@ -384,7 +398,8 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 		firstLine = StringUtils.replace(firstLine, "||", "| |");
 		String[] parts = StringUtils.split(firstLine, "|");
 		if (parts.length != 4) {
-			throw new IllegalArgumentException("Ungültige erste Zeile eines Szenarios: '" + firstLine + "'");
+			list.add("Ungültige erste Zeile eines Szenarios: '" + firstLine + "'");
+			return list;
 		}
 		parts = parts[3].split(",");
 		List<String> parameters = new ArrayList<String>();
@@ -428,7 +443,6 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 		return scenarioCalls;
 	}
 
-
 	private void listFiles(File directory, String root, List<Suite> suites) throws IOException {
 		for (File file : directory.listFiles()) {
 			// TODO: Bitte durch vernünftiges Parsen ersetzen
@@ -449,7 +463,7 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 							}
 							line = brTest.readLine();
 						}
-						if(suite.getTestReferences().size() > 0){
+						if (suite.getTestReferences().size() > 0) {
 							suites.add(suite);
 						}
 					}
@@ -481,9 +495,9 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 		parserList.add(new StandardDropDownMetaDataParser("B1300_DropdownZahlweise", "Zahlweise"));
 		parserList.add(new StandardDropDownMetaDataParser("B1100_DropdownProduktgruppe", "Produktgruppe"));
 
-		for (String key :  getAllTestCaseNames()) {
+		for (String key : getAllTestCaseNames()) {
 			Test test = new Test(key);
-			for (String line :  getSource(key)) {
+			for (String line : getSource(key)) {
 				for (MetaDataParser metaDataParser : parserList) {
 					MetaDataTag tag = metaDataParser.findInContentLine(line);
 					if (tag != null) {
@@ -504,13 +518,22 @@ public class TestCaseDataProviderImpl implements TestCaseDataProvider {
 	public Collection<Test> getAllTests() throws IOException {
 		return tests;
 	}
-	public static void main(String args[]) throws IOException {
-		String rootPath = "C:\\Testautomatisierung\\FitNessePages";
-		String projectName = "NeuelebenTests";
-		TestCaseDataProviderImpl TestCaseDataProviderImpl = new TestCaseDataProviderImpl(rootPath, projectName);
-		for(Suite suite : TestCaseDataProviderImpl.getAllSuites()){
-			System.out.println(suite.getName());
+
+	public static void main(String args[]) throws IOException, InterruptedException {
+
+		while (true) {
+			URL url = new URL("http://127.0.0.1:91/NeuelebenTests?status");
+			URLConnection con = url.openConnection();
+			InputStream in = con.getInputStream();
+			String encoding = "UTF-8";
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			byte[] buf = new byte[8192];
+			int len = 0;
+			while ((len = in.read(buf)) != -1) {
+				baos.write(buf, 0, len);
+			}
+			System.out.println(new String(baos.toByteArray(), encoding));
+			Thread.sleep(1000);
 		}
-		;
 	}
 }

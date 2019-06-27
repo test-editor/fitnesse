@@ -26,6 +26,7 @@ import fitnesse.responders.editing.AllActionGroupsResponder;
 import fitnesse.responders.editing.EditResponder;
 import fitnesse.responders.editing.ListeScenarioCallsResponder;
 import fitnesse.responders.editing.ListeSuitesResponder;
+import fitnesse.responders.editing.ShowCompleteTestSourceResponder;
 import fitnesse.responders.editing.ListeTestsResponder;
 import fitnesse.responders.editing.NewPageResponder;
 import fitnesse.responders.editing.PropertiesResponder;
@@ -126,6 +127,7 @@ public class ResponderFactory {
     addResponder("suites", ListeSuitesResponder.class);
     addResponder("scenarioCalls", ListeScenarioCallsResponder.class);
     addResponder("tests", ListeTestsResponder.class);
+    addResponder("completetestsource", ShowCompleteTestSourceResponder.class);
     addResponder("log", LogFileResponder.class);
     addResponder("taillog", TailLogFileResponder.class);
     

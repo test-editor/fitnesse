@@ -34,7 +34,7 @@ public class StatusResponder implements Responder {
 
 	@Override
 	public Response makeResponse(FitNesseContext context, Request request) throws Exception {
-		final String localRoot = "C:\\Testautomatisierung\\FitNessePages\\NeuelebenTests";
+		final String localRoot = ".";
 		final String remoteRoot = "http://svn1.system.local/anonsvn/lvneu/NLv/testautomatisierung/trunk/";
 		long localRevisionsNumber = TestCaseDataProviderInstance.getRevisionNumber();
 		boolean svnUpdateNeeded = localRevisionsNumber < svnService.getRemoteRevisionsNumber(remoteRoot);
@@ -63,8 +63,9 @@ public class StatusResponder implements Responder {
 		response.setContent(context.pageFactory.render(velocityContext, "status.vm"));
 		response.addHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
 		response.setStatus(200);
-		logger.info("fitnesseStatus '" + velocityContext.get("fitnesseStatus") + "'; SVN-Update '"
-				+ velocityContext.get("svnUpToDate") + "', Revisionsnummer '" + velocityContext.get("revisionNumber") + "'");
+		logger.info("fitnesseStatus '" + velocityContext.get("fitnesseStatus") + "'; SVN is aktuell '"
+				+ velocityContext.get("svnUpToDate") + "', Revisionsnummer '" + velocityContext.get("revisionNumber")
+				+ "'");
 		return response;
 	}
 
@@ -72,15 +73,16 @@ public class StatusResponder implements Responder {
 		private static SvnService instance = new SvnService();
 		private boolean updating = false;
 		private boolean error = false;
+		private SVNWCClient client = null;
 
 		private Long lastLocalRevisionNumber;
 
-		public long getLocalRevisionsNumber(String localRoot) {
+		public long getLocalRevisionsNumber() {
 			if (!updating) {
 				final SVNWCClient client = getClient();
 				SVNInfo doInfo;
 				try {
-					doInfo = client.doInfo(new File(localRoot), null);
+					doInfo = client.doInfo(new File("."), null);
 					lastLocalRevisionNumber = doInfo.getRevision().getNumber();
 				} catch (SVNException e) {
 					e.printStackTrace();
@@ -144,10 +146,13 @@ public class StatusResponder implements Responder {
 		}
 
 		private SVNWCClient getClient() {
-			ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager();
+			if (client == null) {
+				ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager();
 
-			ISVNOptions options = SVNWCUtil.createDefaultOptions(true);
-			return new SVNWCClient(authManager, options);
+				ISVNOptions options = SVNWCUtil.createDefaultOptions(true);
+				client = new SVNWCClient(authManager, options);
+			}
+			return client;
 		}
 
 		public static SvnService getInstance() {

@@ -34,13 +34,14 @@ public class ChangeListResponder implements Responder {
 	public ChangeListResponder() {
 	}
 
+	private static SVNClientManager clientManager;
+
 	@Override
 	public Response makeResponse(FitNesseContext context, Request request) throws Exception {
 		return makeValidResponse(request, context);
 	}
 
 	private Response makeValidResponse(Request request, FitNesseContext context) {
-
 
 		HtmlPage page = context.pageFactory.newPage();
 		page.setTitle("Changes ");
@@ -71,14 +72,12 @@ public class ChangeListResponder implements Responder {
 					+ " ist kein gültiges FitnesseVerzeichnis. Die properties.xml fehlt", NO_PROPERTIES_XML);
 		}
 		try {
-			SVNClientManager clientManager = SVNClientManager.newInstance(SVNWCUtil.createDefaultOptions(true),
-					SVNWCUtil.createDefaultAuthenticationManager());
 
 			final String rootFilelPath = testCaseDir.getAbsolutePath();
 			File rootFile = new File(rootFilelPath);
 			final List<String> changedFiles = new ArrayList<String>();
-			clientManager.getStatusClient().doStatus(rootFile, SVNRevision.HEAD, SVNDepth.INFINITY, false, false, false,
-					false, new ISVNStatusHandler() {
+			getClientManager().getStatusClient().doStatus(rootFile, SVNRevision.HEAD, SVNDepth.INFINITY, false, false,
+					false, false, new ISVNStatusHandler() {
 						@Override
 						public void handleStatus(SVNStatus status) throws SVNException {
 							SVNStatusType statusType = status.getContentsStatus();
@@ -118,6 +117,14 @@ public class ChangeListResponder implements Responder {
 					GENERAL_EXCEPTION);
 		}
 		return getResponse(page);
+	}
+
+	private SVNClientManager getClientManager() {
+		if (clientManager == null) {
+			clientManager = SVNClientManager.newInstance(SVNWCUtil.createDefaultOptions(true),
+					SVNWCUtil.createDefaultAuthenticationManager());
+		}
+		return clientManager;
 	}
 
 	private Response reportError(HtmlPage page, String error, String errorId) {

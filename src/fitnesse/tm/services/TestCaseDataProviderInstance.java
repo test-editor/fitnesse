@@ -1,8 +1,8 @@
 package fitnesse.tm.services;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.logging.Logger;
 
 import fitnesse.responders.team.StatusResponder.SvnService;
@@ -19,15 +19,20 @@ public class TestCaseDataProviderInstance {
 	private static long revisionsNumber;
 	private static String rootPath;
 	private static String projectName;
+	private static boolean updating = false;
 
 	public static void init(String _rootPath, String _projectName) throws IOException {
 		logger.info("init TestCaseDataProviderInstance");
 		instance = new TestCaseDataProviderImpl(_rootPath, _projectName);
 		rootPath = _rootPath;
 		projectName = _projectName;
-		revisionsNumber = svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName);
+		revisionsNumber = svnService.getLocalRevisionsNumber();
 	}
 
+	public static List<String> getTestSource(String key) {
+		startUpdate();
+		return instance.getSource(key);
+	}
 	public static Collection<Test> getAllTests() throws IOException {
 		startUpdate();
 		return instance.getAllTests();
@@ -47,11 +52,11 @@ public class TestCaseDataProviderInstance {
 	}
 	public static synchronized void startUpdate() {
 		logger.info("Check for " + revisionsNumber);
-		if (revisionsNumber == svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName)) {
+		if (!updating && revisionsNumber == svnService.getLocalRevisionsNumber()) {
 			return;
 		}
-		revisionsNumber = svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName);
-		logger.info("updating to version " + svnService.getLocalRevisionsNumber(rootPath + File.separator + projectName));
+		updating = true;
+		logger.info("updating to version " + svnService.getLocalRevisionsNumber());
 		
 		new Thread() {
 			public void run() {
@@ -60,6 +65,9 @@ public class TestCaseDataProviderInstance {
 					instance = newInstance;
 				} catch (IOException e) {
 					throw new RuntimeException(e);
+				} finally {
+					updating = false;
+					revisionsNumber = svnService.getLocalRevisionsNumber();
 				}
 				logger.info("done updating to version " + revisionsNumber);
 			};

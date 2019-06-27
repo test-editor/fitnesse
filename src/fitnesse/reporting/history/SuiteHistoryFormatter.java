@@ -153,7 +153,7 @@ public class SuiteHistoryFormatter extends BaseFormatter implements ExecutionLog
 				JSONObject jsonObject = new JSONObject();
 
 				jsonObject.put("content", contentAsString);
-				jsonObject.put("suite", true);
+				jsonObject.put("resultType", "SUITE");
 				int hoursOffset = TimeZone.getTimeZone("Europe/Berlin").getOffset(new Date().getTime())/(3600*1000);
 				SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'.000+0"+ hoursOffset +":00'");
 				jsonObject.put("date", dateFormat.format(totalTimeMeasurement.startedAt()));

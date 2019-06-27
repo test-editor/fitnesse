@@ -21,6 +21,7 @@ public interface TestCaseDataProvider {
 	Collection<Test> getAllTests() throws IOException;
 	Collection<ScenarioCall> getAllScenarioCalls() throws IOException;
 	Collection<Suite> getAllSuites() throws IOException;
+	List<String> getSource(String key);
 
 	public static class ScenarioCall {
 		private List<String> parameters = new ArrayList<String>();
